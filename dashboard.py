@@ -130,16 +130,44 @@ with izquierda:
     st.pyplot(fig)
 
 with derecha:
-    st.subheader("Lluvia acumulada por mes")
-    mensual = (df.groupby(["Ciudad", "Mes"])["Lluvia"].sum()
-                 .reset_index())
-    fig, ax = plt.subplots(figsize=(6, 3.5))
-    sns.barplot(data=mensual, x="Mes", y="Lluvia", hue="Ciudad",
-                palette=CUALI[:len(ciudades)], ax=ax)
-    ax.set_xlabel("Mes")
-    ax.set_ylabel("Milímetros")
-    ax.legend(frameon=False, title=None)
-    st.pyplot(fig)
+    st.subheader("Frecuencia de días con lluvia por ciudad")
+    datos_lluvia = df.dropna(subset=["Lluvia"]).copy()
+
+    if datos_lluvia.empty:
+        st.warning("No hay datos de precipitación para el periodo seleccionado.")
+    else:
+        datos_lluvia["DiaLluvioso"] = datos_lluvia["Lluvia"] >= 1.0
+        frecuencia = (
+            datos_lluvia.groupby("Ciudad")["DiaLluvioso"]
+            .mean()
+            .mul(100)
+            .reindex(ciudades)
+            .dropna()
+        )
+
+        fig, ax = plt.subplots(figsize=(6, 3.5))
+        colores = [CUALI[ciudades.index(c) % len(CUALI)] for c in frecuencia.index]
+        barras = ax.bar(frecuencia.index, frecuencia.values, color=colores)
+        ax.set_xlabel("Ciudad")
+        ax.set_ylabel("Días lluviosos (%)")
+        ax.set_ylim(0, 110)
+
+        for barra, valor in zip(barras, frecuencia.values):
+            ax.text(
+                barra.get_x() + barra.get_width() / 2,
+                valor + 1.5,
+                f"{valor:.1f}%",
+                ha="center",
+                va="bottom",
+                fontsize=9,
+            )
+
+        st.pyplot(fig)
+        plt.close(fig)
+        st.caption(
+            "Un día lluvioso registra al menos 1 mm de precipitación. "
+            "El porcentaje se calcula sobre los días con datos disponibles."
+        )
 
 
 # ─── La tabla y la descarga ────────────────────────────────────────────
